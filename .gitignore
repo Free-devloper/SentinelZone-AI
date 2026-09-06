@@ -1,0 +1,61 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Ultralytics / YOLO training artifacts
+runs/
+
+# Antigravity / internal agent logs
+.agent/
+*.log
+
+# Duplicate raw Roboflow directory (roboflow_downloaded is primary)
+data/roboflow_real/
+
+# OS generated
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Temporary datasets / scratch files
+*.tmp

@@ -1,0 +1,30 @@
+[project]
+name = "sentinelzone-ai"
+version = "3.0.0"
+description = "Predictive Dynamic Spatial Work-Zone Safety System"
+authors = [{ name = "SentinelZone Engineering Team" }]
+requires-python = ">=3.11"
+dependencies = [
+    "torch>=2.4.0",
+    "torchvision>=0.19.0",
+    "torch-geometric>=2.5.3",
+    "tensorrt>=10.0.0",
+    "numpy>=1.26.4",
+    "opencv-python>=4.10.0",
+    "pydantic>=2.8.2",
+    "langgraph>=0.2.14",
+    "langchain>=0.2.11",
+    "langchain-openai>=0.1.17",
+    "paho-mqtt>=2.1.0",
+    "shapely>=2.0.5",
+    "ifcopenshell>=0.7.0",
+    "fastapi>=0.111.0",
+    "uvicorn>=0.30.1",
+    "pandas>=2.2.2",
+    "ultralytics>=8.2.0",
+    "roboflow>=1.1.30"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

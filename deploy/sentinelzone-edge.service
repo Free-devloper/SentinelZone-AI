@@ -1,0 +1,21 @@
+[Unit]
+Description=SentinelZone-AI Hard Real-Time Predictive Safety Daemon
+After=network.target nvargus-daemon.service
+Requires=nvargus-daemon.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/sentinelzone
+ExecStart=/usr/bin/python3 -m src.edge.edge_runtime
+Restart=always
+RestartSec=1
+WatchdogSec=2s
+LimitMEMLOCK=infinity
+CPUSchedulingPolicy=rr
+CPUSchedulingPriority=95
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,28 @@
+names:
+- Barricade
+- Dumpster
+- EXCAVATORS
+- Gloves
+- Hardhat
+- Mask
+- NO-Hardhat
+- NO-Mask
+- NO-Safety Vest
+- Person
+- Safety Net
+- Safety Shoes
+- Safety Vest
+- dump truck
+- mini-van
+- truck
+- wheel loader
+nc: 17
+roboflow:
+  license: CC BY 4.0
+  project: construction-site-safety
+  url: https://universe.roboflow.com/roboflow-universe-projects/construction-site-safety/dataset/1
+  version: 1
+  workspace: roboflow-universe-projects
+test: ../test/images
+train: ../train/images
+val: ../valid/images

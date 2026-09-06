@@ -1,0 +1,25 @@
+{
+  "site_id": "SITE-5-EARTHMOVING",
+  "camera_id": "CAM-02-MAST",
+  "homography": {
+    "K": [
+      [1420.0, 0.0, 960.0],
+      [0.0, 1420.0, 540.0],
+      [0.0, 0.0, 1.0]
+    ],
+    "dist": [-0.15, 0.08, 0.0, 0.0, 0.0],
+    "H": [
+      [72.825, 25.245, 640.0],
+      [0.0, -2.612, 760.448],
+      [0.0, 0.0394, 1.0]
+    ]
+  },
+  "runtime": {
+    "warning_ttc": 2.5,
+    "critical_ttc": 1.5,
+    "prob_threshold": 0.65,
+    "max_cycle_ms": 120.0,
+    "mqtt_host": "localhost",
+    "mqtt_port": 1883
+  }
+}
