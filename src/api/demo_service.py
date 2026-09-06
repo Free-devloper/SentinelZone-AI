@@ -308,7 +308,16 @@ class DemoService:
     dynamic conflict assessment, and comparative baseline benchmarks using actual
     dataset videos and images on NVIDIA RTX 4070 GPU.
     """
+    _instance: Optional["DemoService"] = None
+
+    @classmethod
+    def get_instance(cls, config_path: str = "config/default_config.json") -> "DemoService":
+        if cls._instance is None:
+            cls._instance = cls(config_path=config_path)
+        return cls._instance
+
     def __init__(self, config_path: str = "config/default_config.json"):
+        DemoService._instance = self
         with open(config_path, "r") as f:
             self.config = json.load(f)
 

@@ -1,17 +1,18 @@
 import json
 import os
+import re
 import logging
+from datetime import datetime
 from typing import TypedDict, Dict, Any, Optional
 from src.schemas.contracts import IncidentTriageVerdict
+from src.graph.llm_provider import get_agent_llm
 
 try:
-    from langchain_openai import ChatOpenAI
     from langchain_core.prompts import ChatPromptTemplate
     from langgraph.graph import StateGraph, END
     HAS_LANGGRAPH = True
 except ImportError:
     HAS_LANGGRAPH = False
-    ChatOpenAI = None
     ChatPromptTemplate = None
     StateGraph = None
     END = "__end__"
@@ -26,63 +27,51 @@ class IncidentTriageState(TypedDict):
     shift_context: str
     final_verdict: Optional[IncidentTriageVerdict]
     active_learning_curated: bool
+    archive_path: Optional[str]
 
 
-VLM_ADJUDICATION_PROMPT = """
-You are a Lead Construction Safety Auditor. Examine this video telemetry and site context.
+VLM_SYSTEM_PROMPT = """
+You are a Lead Construction Safety Auditor. Examine the provided video telemetry and site context.
+Analyze:
+1. Was a designated spotter visually directing the machinery?
+2. Did the pedestrian worker exhibit awareness (eye contact, hand wave, stopping outside swing radius)?
+3. Adjudicate the encounter as TRUE_POSITIVE (hazardous near-miss), FALSE_POSITIVE (perception error / spurious alarm), or CONTROLLED_WORK (authorized close operation behind barriers / with spotter).
 
-Telemetry Data:
+Return ONLY a valid JSON object matching the IncidentTriageVerdict schema with fields:
+event_id, verdict, confidence, spotter_verified, worker_awareness_observed, root_cause_summary, retraining_priority, recommended_mitigation.
+"""
+
+VLM_HUMAN_PROMPT = """Telemetry Data:
 {telemetry}
 
 Shift Operating Context:
 {context}
 
-Analyze:
-1. Was a designated spotter visually directing the machinery?
-2. Did the pedestrian worker exhibit awareness (eye contact, hand wave, stopping outside swing radius)?
-3. Adjudicate the encounter:
-   - TRUE_POSITIVE: Hazardous near-miss or dangerous spatial violation.
-   - FALSE_POSITIVE: Perception error, track switch, or spurious alarm.
-   - CONTROLLED_WORK: Authorized close operation following standard procedures.
-
-Return ONLY a valid JSON object matching this schema:
-{{
-  "event_id": "{event_id}",
-  "verdict": "TRUE_POSITIVE",
-  "confidence": 0.96,
-  "spotter_verified": false,
-  "worker_awareness_observed": false,
-  "root_cause_summary": "Wheel loader reversed into pedestrian crossing path without spotter guidance.",
-  "retraining_priority": "HIGH",
-  "recommended_mitigation": "Install physical jersey barrier between haul lane and foot transit path."
-}}
-"""
-
-
-def _get_vlm():
-    if HAS_LANGGRAPH and ChatOpenAI is not None and os.getenv("OPENAI_API_KEY"):
-        return ChatOpenAI(model="gpt-4o", temperature=0.0)
-    return None
+Event ID: {event_id}"""
 
 
 def vlm_triage_node(state: IncidentTriageState) -> Dict[str, Any]:
-    vlm = _get_vlm()
-    if vlm is not None:
-        try:
-            prompt = ChatPromptTemplate.from_messages([
-                ("system", VLM_ADJUDICATION_PROMPT)
-            ])
-            chain = prompt | vlm
-            response = chain.invoke({
-                "telemetry": json.dumps(state.get("telemetry_json", {})),
-                "context": state.get("shift_context", ""),
-                "event_id": state.get("event_id", "UNKNOWN_EVENT")
-            })
-            data = json.loads(response.content)
-            verdict = IncidentTriageVerdict(**data)
-            return {"final_verdict": verdict}
-        except Exception as e:
-            logger.error(f"VLM incident parsing error via LLM: {e}")
+    llm = get_agent_llm()
+    try:
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", VLM_SYSTEM_PROMPT),
+            ("human", VLM_HUMAN_PROMPT)
+        ])
+        chain = prompt | llm
+        response = chain.invoke({
+            "telemetry": json.dumps(state.get("telemetry_json", {})),
+            "context": state.get("shift_context", ""),
+            "event_id": state.get("event_id", "UNKNOWN_EVENT")
+        })
+        content = response.content if hasattr(response, "content") else str(response)
+        clean_json = re.sub(r"^```json\s*", "", content.strip(), flags=re.MULTILINE)
+        clean_json = re.sub(r"^```\s*", "", clean_json.strip(), flags=re.MULTILINE)
+        clean_json = clean_json.strip("` \n")
+        data = json.loads(clean_json)
+        verdict = IncidentTriageVerdict(**data)
+        return {"final_verdict": verdict}
+    except Exception as e:
+        logger.warning(f"VLM triage fallback invoked: {e}")
 
     # Deterministic adjudication fallback for offline / test validation
     telemetry = state.get("telemetry_json", {})
@@ -122,6 +111,51 @@ def filter_active_learning_node(state: IncidentTriageState) -> Dict[str, Any]:
     return {"active_learning_curated": False}
 
 
+def archive_incident_node(state: IncidentTriageState) -> Dict[str, Any]:
+    """
+    Persists the adjudicated incident record and maintains the active learning retraining queue.
+    """
+    event_id = state.get("event_id", f"INC-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
+    verdict = state.get("final_verdict")
+
+    # 1. Archive Incident to data/incidents/{event_id}.json
+    incidents_dir = "data/incidents"
+    os.makedirs(incidents_dir, exist_ok=True)
+    archive_file = os.path.join(incidents_dir, f"{event_id}.json")
+
+    record = {
+        "event_id": event_id,
+        "archived_at": datetime.now().isoformat(),
+        "video_uri": state.get("video_s3_uri", ""),
+        "shift_context": state.get("shift_context", ""),
+        "telemetry_summary": state.get("telemetry_json", {}),
+        "verdict": verdict.model_dump() if verdict else None,
+        "active_learning_curated": state.get("active_learning_curated", False)
+    }
+
+    with open(archive_file, "w", encoding="utf-8") as f:
+        json.dump(record, f, indent=2)
+
+    # 2. Append to Active Learning Queue if curated
+    if state.get("active_learning_curated"):
+        al_dir = "data/active_learning"
+        os.makedirs(al_dir, exist_ok=True)
+        queue_file = os.path.join(al_dir, "curated_queue.jsonl")
+        al_entry = {
+            "event_id": event_id,
+            "curated_at": datetime.now().isoformat(),
+            "verdict": verdict.verdict if verdict else "UNKNOWN",
+            "retraining_priority": verdict.retraining_priority if verdict else "HIGH",
+            "root_cause": verdict.root_cause_summary if verdict else "",
+            "telemetry": state.get("telemetry_json", {})
+        }
+        with open(queue_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(al_entry) + "\n")
+        logger.info(f"Appended incident {event_id} to active learning queue: {queue_file}")
+
+    return {"archive_path": archive_file.replace("\\", "/")}
+
+
 def build_adjudication_pipeline():
     """
     Assembles and compiles the StateGraph for Pipeline 2: Multimodal Incident Adjudicator & Active Learning Curator.
@@ -133,8 +167,10 @@ def build_adjudication_pipeline():
     builder = StateGraph(IncidentTriageState)
     builder.add_node("vlm_triage", vlm_triage_node)
     builder.add_node("filter_al", filter_active_learning_node)
+    builder.add_node("archive_incident", archive_incident_node)
 
     builder.set_entry_point("vlm_triage")
     builder.add_edge("vlm_triage", "filter_al")
-    builder.add_edge("filter_al", END)
+    builder.add_edge("filter_al", "archive_incident")
+    builder.add_edge("archive_incident", END)
     return builder.compile()

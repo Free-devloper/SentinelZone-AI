@@ -1,0 +1,21 @@
+{
+  "event_id": "INC-20260906-001",
+  "archived_at": "2026-09-06T21:39:32.545411",
+  "video_uri": "s3://sentinel-incidents/2026/09/06/001.mp4",
+  "shift_context": "Excavation near Pier B4",
+  "telemetry_summary": {
+    "min_ttc": 1.4,
+    "p_col": 0.88
+  },
+  "verdict": {
+    "event_id": "INC-20260906-001",
+    "verdict": "TRUE_POSITIVE",
+    "confidence": 0.92,
+    "spotter_verified": false,
+    "worker_awareness_observed": false,
+    "root_cause_summary": "Machinery swing radius breached pedestrian safety envelope with critical trajectory convergence.",
+    "retraining_priority": "HIGH",
+    "recommended_mitigation": "Mandate dedicated spotter with two-way radio link; install proximity acoustic alarm on machinery."
+  },
+  "active_learning_curated": true
+}

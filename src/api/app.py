@@ -1,7 +1,8 @@
 import os
 import asyncio
+import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -10,6 +11,8 @@ from pydantic import BaseModel
 
 from src.schemas.contracts import ShiftSafetyManifest, IncidentTriageVerdict
 from src.api.demo_service import DemoService
+
+logger = logging.getLogger("SentinelAPI")
 
 app = FastAPI(title="SentinelZone-AI Incident Broker & Interactive Demo Gateway", version="4.0.0")
 
@@ -22,7 +25,7 @@ app.add_middleware(
 )
 
 # Initialize Demo Service on GPU
-demo_service = DemoService()
+demo_service = DemoService.get_instance()
 
 # Ensure directories exist
 media_dir = Path("data/test_videos").resolve()
@@ -167,6 +170,177 @@ async def submit_human_adjudication(verdict: IncidentTriageVerdict):
         "recorded_verdict": verdict.verdict,
         "retraining_priority": verdict.retraining_priority
     }
+
+
+# ==================== Autonomous Agentic Endpoints ====================
+
+class AgentChatRequest(BaseModel):
+    message: str
+    site_id: Optional[str] = "SITE-01"
+    history: Optional[List[Dict[str, str]]] = None
+
+
+class CompileManifestRequest(BaseModel):
+    permit_text: str
+    site_id: Optional[str] = "SITE-01"
+    shift_date: Optional[str] = "2026-09-07"
+    ifc_file_path: Optional[str] = "models/site_pier_b4.ifc"
+
+
+class AdjudicateRequest(BaseModel):
+    event_id: Optional[str] = None
+    video_s3_uri: Optional[str] = "s3://sentinel-incidents/scenario_worker_in_excavator_blind_spot.mp4"
+    telemetry_json: Optional[Dict[str, Any]] = None
+    shift_context: Optional[str] = None
+
+
+@app.post("/api/v1/agent/supervisor/chat")
+async def supervisor_agent_chat(req: AgentChatRequest):
+    """
+    Direct multi-turn interaction with SentinelZone-AI's Autonomous Site Safety Supervisor ReAct agent.
+    Autonomously invokes real domain tools (telemetry, permit compilation, adjudication, toolbox briefing, etc.).
+    """
+    try:
+        from src.graph.supervisor_agent import build_supervisor_agent
+        from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
+        
+        messages = []
+        if req.history:
+            for item in req.history:
+                role = item.get("role")
+                content = item.get("content", "")
+                if role == "user":
+                    messages.append(HumanMessage(content=content))
+                elif role == "assistant":
+                    messages.append(AIMessage(content=content))
+        messages.append(HumanMessage(content=req.message))
+
+        agent = build_supervisor_agent()
+        result = agent.invoke({
+            "messages": messages,
+            "site_id": req.site_id or "SITE-01",
+            "current_step": 0
+        })
+
+        out_messages = result.get("messages", [])
+        final_text = ""
+        tool_traces = []
+
+        for m in out_messages:
+            if isinstance(m, ToolMessage):
+                tool_traces.append({
+                    "tool": m.name,
+                    "output": m.content
+                })
+            elif isinstance(m, AIMessage):
+                if m.content:
+                    final_text = m.content
+
+        return {
+            "response": final_text,
+            "tool_executions": tool_traces,
+            "site_id": req.site_id,
+            "total_steps": result.get("current_step", 1)
+        }
+    except Exception as e:
+        logger.error(f"Error in supervisor_agent_chat: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/agent/pipeline1/compile_manifest")
+async def pipeline1_compile_manifest(req: CompileManifestRequest):
+    """
+    Executes Pipeline 1: Natural language PTW extraction -> BIM spatial envelope resolution
+    -> ShiftSafetyManifest Pydantic v2 validation -> Edge collision engine injection.
+    """
+    try:
+        from src.graph.context_pipeline import build_context_pipeline
+        pipe = build_context_pipeline()
+        res = pipe.invoke({
+            "site_id": req.site_id or "SITE-01",
+            "shift_date": req.shift_date or "2026-09-07",
+            "raw_permit_text": req.permit_text,
+            "ifc_file_path": req.ifc_file_path or "models/site_pier_b4.ifc",
+            "extracted_tasks": [],
+            "resolved_envelopes": [],
+            "validated_manifest": None,
+            "validation_errors": [],
+            "dispatch_status": ""
+        })
+
+        manifest = res.get("validated_manifest")
+        return {
+            "shift_id": manifest.shift_id if manifest else None,
+            "site_id": req.site_id,
+            "tasks_count": len(res.get("extracted_tasks", [])),
+            "envelopes_count": len(res.get("resolved_envelopes", [])),
+            "dispatch_status": res.get("dispatch_status"),
+            "manifest": manifest.model_dump() if manifest else None,
+            "validation_errors": res.get("validation_errors", [])
+        }
+    except Exception as e:
+        logger.error(f"Error in pipeline1_compile_manifest: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/agent/pipeline2/adjudicate")
+async def pipeline2_adjudicate(req: AdjudicateRequest):
+    """
+    Executes Pipeline 2: Multimodal VLM Triage -> Active Learning Curation -> Forensic Archival.
+    """
+    try:
+        import uuid
+        from src.graph.adjudication_pipeline import build_adjudication_pipeline
+        evt_id = req.event_id or f"INC-{uuid.uuid4().hex[:8].upper()}"
+        pipe = build_adjudication_pipeline()
+        res = pipe.invoke({
+            "event_id": evt_id,
+            "video_s3_uri": req.video_s3_uri or f"s3://sentinel-incidents/{evt_id}.mp4",
+            "telemetry_json": req.telemetry_json or {"min_ttc": 1.4, "p_col": 0.88},
+            "shift_context": req.shift_context or "Active excavation work zone",
+            "final_verdict": None,
+            "active_learning_curated": False,
+            "archive_path": None
+        })
+
+        v = res.get("final_verdict")
+        return {
+            "event_id": evt_id,
+            "verdict": v.model_dump() if v else None,
+            "active_learning_curated": res.get("active_learning_curated", False),
+            "archive_path": res.get("archive_path")
+        }
+    except Exception as e:
+        logger.error(f"Error in pipeline2_adjudicate: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/agent/toolbox_talk/{site_id}")
+async def get_toolbox_talk(site_id: str, focus_hazard: Optional[str] = None):
+    """
+    Synthesizes an OSHA-compliant daily safety toolbox briefing (29 CFR 1926).
+    """
+    try:
+        from src.graph.supervisor_agent import generate_daily_toolbox_talk
+        raw = generate_daily_toolbox_talk.invoke({"site_id": site_id, "focus_hazard": focus_hazard})
+        import json
+        return json.loads(raw)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/agent/active_learning/queue")
+async def get_curated_active_learning_queue():
+    """
+    Returns statistics and curated edge-case dataset samples ready for retraining.
+    """
+    try:
+        from src.graph.supervisor_agent import get_active_learning_queue
+        raw = get_active_learning_queue.invoke({})
+        import json
+        return json.loads(raw)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

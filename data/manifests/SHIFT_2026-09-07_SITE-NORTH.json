@@ -1,0 +1,38 @@
+{
+  "shift_id": "SHIFT_2026-09-07_SITE-NORTH",
+  "site_id": "SITE-NORTH",
+  "compiled_at": "2026-09-06T18:00:00Z",
+  "envelopes": [
+    {
+      "envelope_id": "ENV_SITE-NORTH_Trench_excavation",
+      "zone_name": "Trench Excavation",
+      "activity_type": "Trench Excavation",
+      "valid_from": "2026-09-07T07:00:00Z",
+      "valid_until": "2026-09-07T17:00:00Z",
+      "polygon_metric_epsg3857": [
+        [
+          100.0,
+          50.0
+        ],
+        [
+          125.0,
+          50.0
+        ],
+        [
+          125.0,
+          70.0
+        ],
+        [
+          100.0,
+          70.0
+        ]
+      ],
+      "severity": "CRITICAL_EXCLUSION",
+      "exempt_entities": [
+        "SPOTTER"
+      ],
+      "ttc_multiplier": 1.0,
+      "max_allowable_speed_ms": 2.22
+    }
+  ]
+}

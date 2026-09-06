@@ -1,0 +1,21 @@
+{
+  "event_id": "INC-LIVE-TEST-01",
+  "archived_at": "2026-09-06T21:40:57.069739",
+  "video_uri": "s3://sentinel-incidents/scenario_worker_in_excavator_blind_spot.mp4",
+  "shift_context": "Worker entered excavator blind spot.",
+  "telemetry_summary": {
+    "min_ttc": 1.1,
+    "p_col": 0.96
+  },
+  "verdict": {
+    "event_id": "INC-LIVE-TEST-01",
+    "verdict": "TRUE_POSITIVE",
+    "confidence": 0.98,
+    "spotter_verified": false,
+    "worker_awareness_observed": false,
+    "root_cause_summary": "Worker traversed directly into hydraulic excavator rear blind spot without spotter visual contact.",
+    "retraining_priority": "HIGH",
+    "recommended_mitigation": "Mandate dedicated spotter with two-way radio link; install proximity acoustic alarm on machinery."
+  },
+  "active_learning_curated": true
+}

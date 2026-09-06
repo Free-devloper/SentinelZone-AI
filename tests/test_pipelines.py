@@ -79,10 +79,31 @@ class TestLangGraphPipelines(unittest.TestCase):
         # High retraining priority should be curated for active learning
         self.assertTrue(res_al["active_learning_curated"])
 
+        # Test Archival and Active Learning Persistence
+        state_tp["active_learning_curated"] = res_al["active_learning_curated"]
+        from src.graph.adjudication_pipeline import archive_incident_node
+        res_archive = archive_incident_node(state_tp)
+        self.assertIn("archive_path", res_archive)
+        import os
+        self.assertTrue(os.path.exists(res_archive["archive_path"]))
+
     def test_pipeline2_compilation(self):
         graph = build_adjudication_pipeline()
         if graph is not None:
             self.assertIsNotNone(graph)
+            # Test full graph execution
+            state_in = {
+                "event_id": "INC-GRAPH-TEST-01",
+                "video_s3_uri": "test.mp4",
+                "telemetry_json": {"min_ttc": 1.2, "p_col": 0.95},
+                "shift_context": "Haul road crossing",
+                "final_verdict": None,
+                "active_learning_curated": False,
+                "archive_path": None
+            }
+            out = graph.invoke(state_in)
+            self.assertIsNotNone(out.get("final_verdict"))
+            self.assertIsNotNone(out.get("archive_path"))
 
 
 if __name__ == "__main__":

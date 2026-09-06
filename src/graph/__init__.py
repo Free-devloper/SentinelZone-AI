@@ -5,10 +5,14 @@ Pipeline 2: Multimodal Incident Adjudication & Active Learning Curation
 """
 from src.graph.context_pipeline import build_context_pipeline, ContextGraphState
 from src.graph.adjudication_pipeline import build_adjudication_pipeline, IncidentTriageState
+from src.graph.supervisor_agent import build_supervisor_agent, SupervisorAgentState, ALL_SUPERVISOR_TOOLS
 
 __all__ = [
     "build_context_pipeline",
     "ContextGraphState",
     "build_adjudication_pipeline",
     "IncidentTriageState",
+    "build_supervisor_agent",
+    "SupervisorAgentState",
+    "ALL_SUPERVISOR_TOOLS",
 ]

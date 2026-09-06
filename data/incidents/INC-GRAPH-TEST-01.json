@@ -1,0 +1,21 @@
+{
+  "event_id": "INC-GRAPH-TEST-01",
+  "archived_at": "2026-09-06T21:39:32.318663",
+  "video_uri": "test.mp4",
+  "shift_context": "Haul road crossing",
+  "telemetry_summary": {
+    "min_ttc": 1.2,
+    "p_col": 0.95
+  },
+  "verdict": {
+    "event_id": "INC-GRAPH-TEST-01",
+    "verdict": "TRUE_POSITIVE",
+    "confidence": 0.92,
+    "spotter_verified": false,
+    "worker_awareness_observed": false,
+    "root_cause_summary": "Machinery swing radius breached pedestrian safety envelope with critical trajectory convergence.",
+    "retraining_priority": "HIGH",
+    "recommended_mitigation": "Mandate dedicated spotter with two-way radio link; install proximity acoustic alarm on machinery."
+  },
+  "active_learning_curated": true
+}

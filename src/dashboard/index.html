@@ -307,6 +307,152 @@
       font-size: 9px;
       font-family: var(--mono-font);
     }
+
+    /* AI Safety Supervisor Modal */
+    .agent-modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .agent-modal {
+      width: 820px;
+      max-width: 95vw;
+      height: 660px;
+      max-height: 90vh;
+      background: #111417;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 25px rgba(59,130,246,0.25);
+      overflow: hidden;
+    }
+    .agent-modal-header {
+      padding: 12px 18px;
+      background: #161a1e;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .agent-modal-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .agent-quick-actions {
+      padding: 8px 16px;
+      background: #0d1013;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+    .quick-chip {
+      padding: 4px 10px;
+      background: #1e242b;
+      border: 1px solid #374151;
+      border-radius: 14px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #93c5fd;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .quick-chip:hover {
+      background: #2563eb;
+      color: #fff;
+      border-color: #3b82f6;
+    }
+    .agent-chat-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .chat-msg {
+      max-width: 90%;
+      padding: 10px 14px;
+      border-radius: 6px;
+      word-break: break-word;
+    }
+    .chat-msg-user {
+      align-self: flex-end;
+      background: #1e3a8a;
+      color: #eff6ff;
+      border: 1px solid #2563eb;
+    }
+    .chat-msg-agent {
+      align-self: flex-start;
+      background: #181d22;
+      color: #e5e7eb;
+      border: 1px solid #2a313a;
+    }
+    .chat-msg-agent h3 {
+      font-size: 12px;
+      color: #60a5fa;
+      margin-bottom: 6px;
+    }
+    .chat-msg-agent ul, .chat-msg-agent ol {
+      margin-left: 18px;
+      margin-top: 4px;
+    }
+    .tool-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 6px;
+      margin-bottom: 6px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      border-radius: 3px;
+      font-size: 10px;
+      font-family: var(--mono-font);
+      font-weight: 700;
+    }
+    .agent-modal-footer {
+      padding: 12px 16px;
+      background: #161a1e;
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      gap: 10px;
+    }
+    .agent-input {
+      flex: 1;
+      background: #0f1317;
+      border: 1px solid #374151;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: #fff;
+      outline: none;
+    }
+    .agent-input:focus { border-color: var(--accent-blue); }
+    .agent-send-btn {
+      padding: 8px 16px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .agent-send-btn:hover { background: #1d4ed8; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
@@ -333,6 +479,7 @@
         <option value="scenario_1_real_site">Scenario 1: Actual Construction Site Footage (Active Haul Road)</option>
       </select>
       <button class="ctrl-btn" style="padding: 4px 8px; font-size: 11px;" title="Scan folder for newly dropped videos" onclick="refreshScenarioList()">⟳ Rescan</button>
+      <button class="ctrl-btn" style="padding: 4px 10px; font-size: 11px; background: rgba(59, 130, 246, 0.2); border-color: #3b82f6; color: #60a5fa;" onclick="openAgentModal()">🤖 AI Safety Supervisor</button>
       <div id="system-alert-badge" class="badge badge-alert-normal">NORMAL (SAFE)</div>
     </div>
   </header>
@@ -464,6 +611,9 @@
           </button>
           <button class="btn-act btn-cw" onclick="recordVerdict('CONTROLLED_WORK')">
             <span>Controlled Co-Work</span> <span class="kbd">C</span>
+          </button>
+          <button class="btn-act" style="background: #2563eb; color: #fff; margin-top: 4px;" onclick="triggerAgentAdjudication()">
+            <span>🤖 Agentic AI Triage</span> <span class="kbd">A</span>
           </button>
         </div>
       </div>
@@ -1026,6 +1176,166 @@
 
     // Initial boot
     initDynamicDropdown(false);
+
+    // ===================================================================
+    // AI Safety Supervisor Agent Modal & Chat
+    // ===================================================================
+    let agentConversationHistory = [];
+
+    function openAgentModal() {
+      document.getElementById('agent-modal-backdrop').style.display = 'flex';
+      document.getElementById('agent-input-field').focus();
+    }
+
+    function closeAgentModal() {
+      document.getElementById('agent-modal-backdrop').style.display = 'none';
+    }
+
+    function onBackdropClick(e) {
+      if (e.target.id === 'agent-modal-backdrop') {
+        closeAgentModal();
+      }
+    }
+
+    function formatMarkdown(text) {
+      if (!text) return '';
+      let html = text
+        .replace(/### (.*?)\n/g, '<h3>$1</h3>')
+        .replace(/## (.*?)\n/g, '<h2>$1</h2>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`]+)`/g, '<code style="background: rgba(0,0,0,0.4); padding: 1px 4px; border-radius: 3px; font-family: var(--mono-font); color: #34d399;">$1</code>')
+        .replace(/\n\n/g, '<br><br>')
+        .replace(/\n- (.*?)/g, '<br>• $1');
+      return html;
+    }
+
+    function appendAgentChatMessage(role, content, tools = []) {
+      const chatBody = document.getElementById('agent-chat-body');
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `chat-msg ${role === 'user' ? 'chat-msg-user' : 'chat-msg-agent'}`;
+
+      let inner = '';
+      if (tools && tools.length > 0) {
+        tools.forEach(t => {
+          inner += `<div class="tool-badge">🔧 Tool Executed: ${t.tool}</div>`;
+        });
+      }
+      inner += `<div>${formatMarkdown(content)}</div>`;
+      msgDiv.innerHTML = inner;
+      chatBody.appendChild(msgDiv);
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    async function sendAgentMessage(customText = null) {
+      const input = document.getElementById('agent-input-field');
+      const text = (customText || input.value || '').trim();
+      if (!text) return;
+
+      appendAgentChatMessage('user', text);
+      if (!customText) input.value = '';
+
+      // Loading indicator
+      const chatBody = document.getElementById('agent-chat-body');
+      const loadingDiv = document.createElement('div');
+      loadingDiv.id = 'agent-loading-indicator';
+      loadingDiv.className = 'chat-msg chat-msg-agent';
+      loadingDiv.innerHTML = '<span style="color: var(--accent-cyan);">⚙️ Agent ReAct loop executing domain tools...</span>';
+      chatBody.appendChild(loadingDiv);
+      chatBody.scrollTop = chatBody.scrollHeight;
+
+      try {
+        const resp = await fetch('/api/v1/agent/supervisor/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            message: text,
+            site_id: 'SITE-01',
+            history: agentConversationHistory.slice(-4)
+          })
+        });
+        const data = await resp.json();
+        const loadElem = document.getElementById('agent-loading-indicator');
+        if (loadElem) loadElem.remove();
+
+        if (data.response) {
+          appendAgentChatMessage('agent', data.response, data.tool_executions || []);
+          agentConversationHistory.push({ role: 'user', content: text });
+          agentConversationHistory.push({ role: 'assistant', content: data.response });
+        } else {
+          appendAgentChatMessage('agent', 'Error: Received empty response from supervisor agent.');
+        }
+      } catch (err) {
+        const loadElem = document.getElementById('agent-loading-indicator');
+        if (loadElem) loadElem.remove();
+        appendAgentChatMessage('agent', `Failed to connect to agent server: ${err.message}`);
+      }
+    }
+
+    function runAgentQuickAction(type) {
+      if (type === 'ptw') {
+        sendAgentMessage('Compile work permit for Pier B4: Trench excavation with heavy articulated loader active, spotter present.');
+      } else if (type === 'telemetry') {
+        sendAgentMessage(`Check live telemetry and kinematic risk for ${currentScenario}`);
+      } else if (type === 'adjudicate') {
+        sendAgentMessage(`Run multimodal adjudication and active learning triage for ${currentScenario}`);
+      } else if (type === 'toolbox') {
+        sendAgentMessage('Generate OSHA daily safety toolbox briefing for heavy machinery swing zones');
+      } else if (type === 'active_learning') {
+        sendAgentMessage('Inspect active learning retraining queue and show curated edge cases');
+      }
+    }
+
+    async function triggerAgentAdjudication() {
+      openAgentModal();
+      runAgentQuickAction('adjudicate');
+    }
+
+    // Keyboard shortcut for Agent modal: 'A' or 'a'
+    window.addEventListener('keydown', (e) => {
+      if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
+        return;
+      }
+      if (e.key === 'a' || e.key === 'A') {
+        triggerAgentAdjudication();
+      }
+    });
   </script>
+
+  <!-- Autonomous AI Safety Supervisor Modal -->
+  <div id="agent-modal-backdrop" class="agent-modal-backdrop" onclick="onBackdropClick(event)">
+    <div class="agent-modal" onclick="event.stopPropagation()">
+      <div class="agent-modal-header">
+        <div class="agent-modal-title">
+          <span>🤖 Autonomous Site Safety Supervisor</span>
+          <span class="badge" style="background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid #3b82f6; font-size: 10px;">LangGraph ReAct Multi-Tool Agent</span>
+        </div>
+        <button class="ctrl-btn" style="padding: 2px 8px; font-size: 12px;" onclick="closeAgentModal()">✕</button>
+      </div>
+      
+      <!-- Quick Action Chips -->
+      <div class="agent-quick-actions">
+        <div class="quick-chip" onclick="runAgentQuickAction('ptw')">📋 Compile Shift PTW (Pier B4)</div>
+        <div class="quick-chip" onclick="runAgentQuickAction('telemetry')">🔍 Live EKF Telemetry</div>
+        <div class="quick-chip" onclick="runAgentQuickAction('adjudicate')">⚖️ Multimodal Incident Triage</div>
+        <div class="quick-chip" onclick="runAgentQuickAction('toolbox')">📢 OSHA Toolbox Briefing</div>
+        <div class="quick-chip" onclick="runAgentQuickAction('active_learning')">📈 Active Learning Queue</div>
+      </div>
+
+      <!-- Scrollable Chat Body -->
+      <div id="agent-chat-body" class="agent-chat-body">
+        <div class="chat-msg chat-msg-agent">
+          <h3>🤖 Sentinel Safety Supervisor Online</h3>
+          <p>Autonomous agent initialized on edge GPU. I continuously monitor multi-agent kinematics, dynamic exclusion envelopes, and incident telemetry.</p>
+          <p style="margin-top: 6px; color: var(--text-muted);">Select a quick action above or enter natural language commands below.</p>
+        </div>
+      </div>
+
+      <!-- Chat Input Area -->
+      <div class="agent-modal-footer">
+        <input type="text" id="agent-input-field" class="agent-input" placeholder="Ask Supervisor (e.g. 'Compile permit for Pier B4', 'Adjudicate excavator near-miss', 'Generate OSHA talk')..." onkeydown="if(event.key==='Enter') sendAgentMessage()">
+        <button class="agent-send-btn" onclick="sendAgentMessage()">Send</button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
